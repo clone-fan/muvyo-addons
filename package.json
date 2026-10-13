@@ -1,0 +1,11 @@
+{
+  "name": "muvyo-addons",
+  "private": true,
+  "version": "0.0.0",
+  "description": "clone-fan 的 Muvyo 第三方插件仓库（本地开发工具）",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "validate": "node tools/validate-plugin.mjs"
+  }
+}

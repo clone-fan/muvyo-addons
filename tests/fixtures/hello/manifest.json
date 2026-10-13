@@ -1,0 +1,17 @@
+{
+  "api": 1,
+  "id": "clone-fan.hello",
+  "name": "本地测试样例",
+  "version": "1.0.0",
+  "author": "clone-fan",
+  "description": "仅用于本地沙箱测试的样例插件，不发布。",
+  "permissions": {
+    "domains": ["api.example.com"]
+  },
+  "config": [
+    {"key": "size", "label": "每次条数", "type": "number", "min": 1, "max": 50, "step": 1, "unit": "条", "default": "20"}
+  ],
+  "capabilities": {
+    "search": {"link_types": ["115", "magnet"], "supports_tmdb": false, "resolve": false}
+  }
+}
