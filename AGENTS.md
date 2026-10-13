@@ -11,8 +11,9 @@ Muvyo 第三方插件开发仓库，作者命名空间 `clone-fan`。协作原�
 ## 仓库结构
 
 - `src/<插件ID>/`：插件源码（`manifest.json`、入口 JS、可选 `README.md`、图标、慕慕立绘）。**git 忽略，只留本地**，不提交、不上传。
-- `plugins/<插件ID>/`：加密签名产物（`manifest.json`、`encrypted.json`、`README.md`、`signature.json`），提交。
+- `plugins/<插件ID>/`：加密签名产物（`manifest.json`、`encrypted.json`、`README.md`、`signature.json`，以及 manifest 声明的图标与慕慕立绘图片），提交。
 - `index.json` + `index.json.sig`：插件仓库索引与仓库签名，提交。索引任何字节改动（含格式化）都必须重新签名。
+- `.gitattributes`：把 `index.json`、`index.json.sig` 标为 `-text`，防止 Git 换行转换破坏字节签名；不要删除。
 - `muvyo-signing.json`（作者凭据）、`repo-signing.pem`（仓库私钥）、`mv_addon.py`：绝不提交，绝不打印内容。
 - `tools/`：本地开发工具；`tests/`：测试；`docs/`：流程文档。
 
@@ -32,7 +33,7 @@ python .claude/skills/muvyo-addon-publish/scripts/sign_index.py verify
 ## 硬性规则
 
 - 运行环境是 QuickJS ES2020：没有 Node/浏览器 API，没有 `require`/`import`/`setTimeout`，`mv.fetch` 同步返回。
-- 平台限制：单次调用 60 秒（命名 3 秒）、每次调用最多 30 个请求、单请求 20 秒、响应 ≤ 4 MB、内存 64 MB、`mv.storage` ≤ 64 KB、入口文件 ≤ 1 MB。
+- 平台限制：单次调用 60 秒（命名 3 秒）、每次调用最多 30 个请求、单请求 20 秒、响应 ≤ 4 MB、内存 64 MB、`mv.storage` ≤ 64 KB、入口文件 ≤ 1 MB；调用失败不提交 `mv.storage` / `mv.cache` 改动。
 - 只声明真正需要的域名；能用 `permissions.muvyo` 的只读服务就不要让用户再填账号。不能访问 IP、内网（用户填的服务地址除外）。
 - 发布只走加密签名产物：不上传 `src/`、明文 JS、源码压缩包、凭据或私钥；不使用 `--no-encrypt`；不用 `git commit --no-verify`、`git push --force`。
 - 已发布文件（含 README、图标）改一个字节都要重新签名，并递增 `version`。

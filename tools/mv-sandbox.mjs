@@ -17,6 +17,8 @@ const DEFAULTS = {
   maxCacheBytes: 20 * 1024 * 1024,
   maxLogs: 200,
   maxLogChars: 500,
+  maxJsonDepth: 32,
+  maxJsonNodes: 32768,
 };
 
 const ENTRY_FUNCTIONS = [
@@ -38,6 +40,20 @@ function cloneJson(value, label) {
 
 function byteLength(value) {
   return Buffer.byteLength(JSON.stringify(value), 'utf8');
+}
+
+// 官方限制：JSON 深度最多 32、节点最多 32768。
+function checkJsonShape(value, limits, label) {
+  let nodes = 0;
+  const walk = (node, depth) => {
+    if (depth > limits.maxJsonDepth) throw new Error(`${label} 的 JSON 深度超过 ${limits.maxJsonDepth}`);
+    nodes += 1;
+    if (nodes > limits.maxJsonNodes) throw new Error(`${label} 的 JSON 节点数超过 ${limits.maxJsonNodes}`);
+    if (node && typeof node === 'object') {
+      for (const item of Object.values(node)) walk(item, depth + 1);
+    }
+  };
+  walk(value, 1);
 }
 
 function lowerHeaders(headers) {
@@ -151,6 +167,7 @@ export function runPlugin({
       if (!Number.isInteger(ttl) || ttl < 1 || ttl > 604800) throw new Error('mv.cache.set 的 ttl_seconds 需为 1–604800');
       const copy = cloneJson(value, 'mv.cache.set 的值');
       if (byteLength(copy) > lim.maxCacheEntryBytes) throw new Error('mv.cache 单条超过 256 KiB');
+      checkJsonShape(copy, lim, 'mv.cache.set 的值');
       state.cacheOps += 1;
       if (state.cacheOps > 1024) throw new Error('mv.cache 单次调用最多 1024 次操作');
       state.cache.set(name, { value: copy, expiresAt: Date.now() + ttl * 1000 });
@@ -166,7 +183,9 @@ export function runPlugin({
   };
 
   const pushLog = (level, message) => {
-    if (state.logs.length >= lim.maxLogs) return;
+    if (state.logs.length >= lim.maxLogs) {
+      throw new Error(`mv.log 单次调用最多 ${lim.maxLogs} 条，超过会终止调用`);
+    }
     state.logs.push({ level, message: String(message).slice(0, lim.maxLogChars) });
   };
 
@@ -227,6 +246,9 @@ export function runPlugin({
     },
     crypto: cryptoApi,
     can: (name) => granted.has(String(name)),
+    render: () => {
+      throw new Error('本地沙箱未实现 mv.render（命名能力）；命名插件请在 Muvyo 的命名方案预览里验证');
+    },
     library: { lookup: (args) => callService('library.lookup', muvyo.library?.lookup, args) },
     telegram: { search: (args) => callService('telegram.search', muvyo.telegram?.search, args) },
     share: { inspect: (args) => callService('share.inspect', muvyo.share?.inspect, args) },
@@ -256,9 +278,20 @@ export function runPlugin({
     call(name, args = {}) {
       const fn = functions[name];
       if (!fn) throw new Error(`插件没有定义 ${name}()`);
-      const result = fn(args);
-      assertStorageSize();
-      return result;
+      // 官方语义：只有整个调用成功结束时才提交 mv.storage / mv.cache 的改动。
+      const storageBefore = new Map(state.storage);
+      const cacheBefore = new Map(state.cache);
+      const cacheOpsBefore = state.cacheOps;
+      try {
+        const result = fn(args);
+        assertStorageSize();
+        return result;
+      } catch (error) {
+        state.storage = storageBefore;
+        state.cache = cacheBefore;
+        state.cacheOps = cacheOpsBefore;
+        throw error;
+      }
     },
     runScheduledTask(taskId) {
       return this.call('scheduledTask', { task: taskId });

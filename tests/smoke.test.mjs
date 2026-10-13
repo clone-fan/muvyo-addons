@@ -57,6 +57,39 @@ test('mv.storage 超过 64 KB 会失败', () => {
   assert.throws(() => plugin.call('search', {}), /mv\.storage 超过/);
 });
 
+test('调用失败时 mv.storage 与 mv.cache 的改动不提交', () => {
+  const plugin = runPlugin({
+    manifest: { id: 'clone-fan.rollback', version: '1.0.0', entry: 'main.js' },
+    code: [
+      'function search() {',
+      '  mv.storage.set("calls", 99);',
+      '  mv.cache.set("page", { items: [] }, 600);',
+      '  throw new Error("业务失败");',
+      '}',
+    ].join('\n'),
+    storage: { calls: 1 },
+  });
+  assert.throws(() => plugin.call('search', {}), /业务失败/);
+  assert.deepEqual(plugin.storage(), { calls: 1 });
+  assert.deepEqual(plugin.cache(), {});
+});
+
+test('mv.log 超过 200 条会终止调用', () => {
+  const plugin = runPlugin({
+    manifest: { id: 'clone-fan.logs', version: '1.0.0', entry: 'main.js' },
+    code: 'function search() { for (let i = 0; i < 201; i += 1) mv.log.info("第 " + i + " 条"); return { items: [] }; }',
+  });
+  assert.throws(() => plugin.call('search', {}), /mv\.log 单次调用最多 200 条/);
+});
+
+test('mv.render 未实现时给出明确提示', () => {
+  const plugin = runPlugin({
+    manifest: { id: 'clone-fan.naming', version: '1.0.0', entry: 'main.js' },
+    code: 'function naming(c) { return { rendered: mv.render(c.template, {}) }; }',
+  });
+  assert.throws(() => plugin.call('naming', { template: '{{title}}{{fileExt}}' }), /本地沙箱未实现 mv\.render/);
+});
+
 test('manifest 校验器通过样例、拦下常见错误', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(fixture, 'manifest.json'), 'utf8'));
   assert.deepEqual(validateManifest(manifest), { errors: [], warnings: [] });

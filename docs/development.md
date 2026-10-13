@@ -45,13 +45,15 @@ node tools/run-plugin.mjs --plugin src/<插件ID> --call search \
 
 ## 本地沙箱对照的限制
 
-`tools/mv-sandbox.mjs` 按官方文档实现：同步 `mv.fetch`、每次调用最多 30 个请求、请求体 ≤ 1 MB、响应 ≤ 4 MB、`mv.storage` ≤ 64 KB、`mv.cache` 键与 TTL 规则、`mv.crypto`、`mv.log`（最多 200 条、每条 500 字）。
+`tools/mv-sandbox.mjs` 按官方文档实现：同步 `mv.fetch`、每次调用最多 30 个请求、请求体 ≤ 1 MB、响应 ≤ 4 MB、`mv.storage` ≤ 64 KB、`mv.cache` 键与 TTL 规则与 JSON 深度/节点上限、`mv.log`（最多 200 条、每条 500 字，超过即终止调用）、`mv.crypto`，以及「调用失败不提交 `mv.storage` / `mv.cache` 改动」。
 
-它不模拟：真实网络与域名白名单、`permissions.muvyo` 的授权与配额、执行时限的强制中断（只在脚本加载时用 vm timeout）、QuickJS 与 V8 的引擎差异。
+它不模拟：真实网络与域名白名单、`permissions.muvyo` 的授权与配额、执行时限的强制中断（只在脚本加载时用 vm timeout）、QuickJS 与 V8 的引擎差异，以及 `mv.render`（命名能力尚未发布，沙箱只给出明确报错，命名插件请在 Muvyo 的命名方案预览里验证）。
 
 ## 签名与发布
 
 首次（已完成）：仓库索引私钥 `repo-signing.pem` 已生成，`index.json` 已带 `public_key` 并签名。私钥丢失后无法用原公钥更新已添加本仓库的 Muvyo，必须安全备份。
+
+`index.json` 与 `index.json.sig` 是**按字节签名**的：`.gitattributes` 已把两者标为 `-text`，禁止 Git 做换行转换。不要删除这两条规则，也不要用编辑器重排 `index.json`——任何字节变化都必须重新签名，否则已添加本仓库的 Muvyo 会拒绝读取。
 
 发布一个插件：
 

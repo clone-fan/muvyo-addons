@@ -23,13 +23,29 @@ while IFS= read -r f; do
       fail=1 ;;
   esac
   case "$f" in
+    mv_addon.py)
+      say "✗ ${f}：签名脚本从 Muvyo 开发者页下载，不进仓库"
+      fail=1 ;;
+  esac
+  case "$f" in
     plugins/*/*/*)
       say "✗ ${f}：插件目录里不能有子目录"
       fail=1 ;;
     plugins/*/*)
       case "$base" in
         manifest.json|README.md|signature.json|encrypted.json) ;;
+        # manifest 声明的图标与慕慕立绘随包签名发布，属于合法产物
+        *.png|*.jpg|*.jpeg|*.webp) ;;
         *) say "✗ ${f}：插件目录里只能有 manifest.json、encrypted.json、README.md、signature.json，不得上传明文 JS"
+           fail=1 ;;
+      esac ;;
+  esac
+  # 明文 JS 只能出现在签名产物的 plugins/ 目录（本地测试样例除外）
+  case "$f" in
+    *.js)
+      case "$f" in
+        plugins/*|tests/fixtures/*) ;;
+        *) say "✗ ${f}：明文 JS 不能提交；插件源码放 src/（git 忽略），只有签名后的 plugins/ 产物入库"
            fail=1 ;;
       esac ;;
   esac

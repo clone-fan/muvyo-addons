@@ -1,0 +1,10 @@
+# index.json 与 index.json.sig 按原始字节签名，禁止 Git 做换行转换，
+# 否则重新检出后本地签名字节与远端不一致，Muvyo 会拒绝读取仓库。
+index.json -text
+index.json.sig -text
+
+# 插件包内的图片按二进制处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
